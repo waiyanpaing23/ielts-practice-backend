@@ -7,8 +7,17 @@ router.use(protect);
 
 router.post(
     '/', 
-    authorize('tutor', 'admin'), 
+    // authorize('tutor', 'admin'), 
     roomController.createRoom
 );
+
+router.get(
+    '/:id',
+    protect,
+    authorize('tutor', 'admin'),
+    roomController.getRoomById
+);
+
+router.delete('/:id', protect, authorize('tutor', 'admin'), roomController.deleteRoom);
 
 module.exports = router;

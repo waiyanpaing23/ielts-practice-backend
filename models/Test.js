@@ -11,10 +11,13 @@ const testSchema = new mongoose.Schema({
     required: [true, 'Please provide a time limit in minutes'],
     default: 60
   },
-  questions: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Question'
-  }],
+  reading_sets: {
+    type: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ReadingSet'
+    }],
+    validate: [arrayLimit, 'An IELTS test must contain exactly 3 reading sets.']
+  },
   creator_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -27,6 +30,10 @@ const testSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
+
+function arrayLimit(val) {
+  return val.length === 3;
+}
 
 const Test = mongoose.model('Test', testSchema);
 

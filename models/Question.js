@@ -9,17 +9,6 @@ const questionSchema = new mongoose.Schema({
   question_type: {
     type: String,
     required: [true, 'Please provide a question type'],
-    // enum: [
-    //   'multiple_choice',
-    //   'true_false_not_given',
-    //   'matching_headings',
-    //   'sentence_completion',
-    //   'short_answer',
-    //   'diagram_labeling',
-    //   'matching_information',
-    //   'matching_features',
-    //   'matching_sentence_endings'
-    // ],
     trim: true
   },
   content: {
