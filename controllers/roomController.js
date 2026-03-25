@@ -64,7 +64,9 @@ exports.createRoom = async (req, res) => {
 
 exports.getRoomById = async (req, res) => {
     try {
-        const room = await Room.findById(req.params.id).populate('test', 'title timeLimit');
+        const room = await Room.findById(req.params.id)
+            .populate('test', 'title timeLimit')
+            .populate('participants.user', 'fullName email');
 
         if (!room) {
             return res.status(404).json({
@@ -73,11 +75,14 @@ exports.getRoomById = async (req, res) => {
             });
         }
 
-        if (room.tutor_id.toString() !== req.user._id.toString()) {
+        const isTutor = room.tutor_id.toString() === req.user._id.toString();
+        const isJoinedLearner = room.participants.some(p => p.user._id.toString() === req.user._id.toString());
+
+        if (!isTutor && !isJoinedLearner) {
             return res.status(403).json({
                 success: false,
-                message: 'Not authorized to access this room dashboard.'
-            })
+                message: 'Not authorized to access this room'
+            });
         }
 
         res.status(200).json({
@@ -118,5 +123,84 @@ exports.deleteRoom = async (req, res) => {
     } catch (error) {
         console.error('Delete room error:', error);
         res.status(500).json({ success: false, message: 'Server Error' });
+    }
+};
+
+
+exports.joinRoom = async (req, res) => {
+    try {
+        const { code } = req.body;
+
+        // 1. Basic Validation
+        if (!code || code.length !== 6) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Please provide a valid 6-character room code.' 
+            });
+        }
+
+        // 2. Find the room by its unique code
+        const room = await Room.findOne({ code: code.toUpperCase() });
+
+        if (!room) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Invalid room code. Please check with your tutor and try again.' 
+            });
+        }
+
+        // 3. Check if the room is still open
+        if (room.status === 'completed') {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'This assessment room has already been closed.' 
+            });
+        }
+
+        // 4. Check if the student is already in the room
+        // 👇 UPDATED: Using `p.user` to match your schema
+        const alreadyJoined = room.participants.find(
+            (p) => p.user.toString() === req.user._id.toString()
+        );
+
+        if (!alreadyJoined) {
+            // 👇 UPDATED: Pushing exactly what your schema expects
+            room.participants.push({
+                user: req.user._id
+                // joinedAt and hasFinished automatically get their default values (Date.now and false)!
+            });
+            await room.save();
+        }
+
+        // 5. Success! Send the ID back so React can redirect them
+        res.status(200).json({
+            success: true,
+            message: 'Successfully joined the room.',
+            data: {
+                roomId: room._id
+            }
+        });
+
+    } catch (error) {
+        console.error('Join room error:', error);
+        res.status(500).json({ success: false, message: 'Server Error processing join request.' });
+    }
+};
+
+
+exports.getTutorRooms = async (req, res) => {
+    try {
+        const rooms = await Room.find({ tutor_id: req.user._id })
+            .populate('test', 'title')
+            .sort('-createdAt');
+
+        res.status(200).json({
+            success: true,
+            count: rooms.length,
+            data: rooms
+        });
+    } catch (error) {
+        console.error('Fetch tutor rooms error:', error);
+        res.status(500).json({ success: false, message: 'Server Error fetching rooms.' });
     }
 };

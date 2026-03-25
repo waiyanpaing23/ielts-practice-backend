@@ -11,12 +11,12 @@ const generateToken = (id) => {
 
 exports.signup = async (req, res) => {
   try {
-    const { email, password, role } = req.body;
+    const { fullName, email, password, role } = req.body;
 
-    if (!email || !password) {
+    if (!fullName || !email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide email and password'
+        message: 'Please provide all required fields'
       });
     }
 
@@ -31,6 +31,7 @@ exports.signup = async (req, res) => {
 
     // Create user
     const user = await User.create({
+      fullName,
       email,
       password,
       role: role

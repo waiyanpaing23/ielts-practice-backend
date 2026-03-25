@@ -2,7 +2,7 @@ const ReadingSet = require("../models/ReadingSet");
 
 exports.createReadingSet = async (req, res) => {
     try {
-        const { title, content, isMatchingHeader, difficulty, questions } = req.body;
+        let { title, content, isMatchingHeader, difficulty, questions } = req.body;
 
         if (!title || !content) {
             return res.status(400).json({ 
@@ -10,6 +10,8 @@ exports.createReadingSet = async (req, res) => {
                 message: 'Please provide a title and passage content' 
             });
         }
+
+        content = content.replace(/&nbsp;/g, ' ');
 
         const readingSet = await ReadingSet.create({
             title,

@@ -11,10 +11,19 @@ router.post(
     roomController.createRoom
 );
 
+router.get('/', protect, authorize('tutor', 'admin'), roomController.getTutorRooms);
+
+router.post(
+    '/join', 
+    protect, 
+    authorize('learner', 'admin', 'tutor'),
+    roomController.joinRoom
+);
+
 router.get(
     '/:id',
     protect,
-    authorize('tutor', 'admin'),
+    // authorize('tutor', 'admin'),
     roomController.getRoomById
 );
 
