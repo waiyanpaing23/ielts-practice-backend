@@ -35,7 +35,12 @@ const roomSchema = new mongoose.Schema({
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true
+    },
+    guestName: {
+      type: String
+    },
+    guestId: {
+      type: String
     },
     joinedAt: {
       type: Date,

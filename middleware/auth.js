@@ -41,6 +41,28 @@ exports.protect = async (req, res, next) => {
   }
 };
 
+
+exports.optionalAuth = async (req, res, next) => {
+    let token;
+
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+        try {
+            token = req.headers.authorization.split(' ')[1];
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            // Attach the user to the request
+            req.user = await User.findById(decoded.id).select('-password');
+        } catch (error) {
+            // If the token is expired/invalid, we don't throw an error. 
+            // We just let them proceed as a guest.
+            console.error('Optional Auth Token Error:', error.message);
+        }
+    }
+    
+    // Always call next(), regardless of whether a token was found or not
+    next();
+};
+
+
 // Authorize specific roles
 exports.authorize = (...roles) => {
   return (req, res, next) => {

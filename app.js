@@ -3,7 +3,21 @@ const express = require('express');
 const connectDB = require('./config/db');
 const cors = require('cors');
 
+const http = require('http');
+const { Server } = require('socket.io');
+
 const app = express();
+
+const server = http.createServer(app);
+
+const io = new Server(server, {
+  cors: {
+    origin: ["http://localhost:3000", "http://localhost:5173"],
+    methods: ["GET", "POST", "PUT", "DELETE"]
+  }
+});
+
+app.set('io', io);
 
 connectDB();
 
@@ -19,6 +33,24 @@ app.get('/', (req, res) => {
   res.json({
     message: 'Welcome to IELTS Practice Backend API',
     version: '1.0.0'
+  });
+});
+
+// Socket.io Connection Event Listener
+io.on('connection', (socket) => {
+  console.log(`🔌 New client connected: ${socket.id}`);
+
+  // Listen for a frontend client asking to join a specific room's channel
+  socket.on('join_room', (roomId) => {
+      socket.join(roomId);
+      console.log(`User ${socket.id} joined room: ${roomId}`);
+      
+      // Tell everyone else in this room that a new student arrived
+      socket.to(roomId).emit('student_joined'); 
+  });
+
+  socket.on('disconnect', () => {
+      console.log(`❌ Client disconnected: ${socket.id}`);
   });
 });
 
@@ -42,9 +74,10 @@ app.use((err, req, res, next) => {
 
 // Start server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+
+server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 
-module.exports = app;
+module.exports = server;

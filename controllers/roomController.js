@@ -65,18 +65,28 @@ exports.createRoom = async (req, res) => {
 exports.getRoomById = async (req, res) => {
     try {
         const room = await Room.findById(req.params.id)
-            .populate('test', 'title timeLimit')
+            .populate('test')
             .populate('participants.user', 'fullName email');
 
         if (!room) {
-            return res.status(404).json({
-                success: false,
-                message: 'Room not found.'
-            });
+            return res.status(404).json({ success: false, message: 'Room not found.' });
         }
 
-        const isTutor = room.tutor_id.toString() === req.user._id.toString();
-        const isJoinedLearner = room.participants.some(p => p.user._id.toString() === req.user._id.toString());
+        // 1. Safely extract IDs (if they exist)
+        const userId = req.user ? req.user._id.toString() : null;
+        // We will look for the guestId in the request headers
+        const guestId = req.headers['x-guest-id']; 
+
+        let isTutor = false;
+        let isJoinedLearner = false;
+
+        if (userId) {
+            // Check if they are the tutor
+            isTutor = room.tutor_id.toString() === userId;
+            isJoinedLearner = room.participants.some(p => p.user && p.user._id.toString() === userId);
+        } else if (guestId) {
+            isJoinedLearner = room.participants.some(p => p.guestId === guestId);
+        }
 
         if (!isTutor && !isJoinedLearner) {
             return res.status(403).json({
@@ -129,7 +139,7 @@ exports.deleteRoom = async (req, res) => {
 
 exports.joinRoom = async (req, res) => {
     try {
-        const { code } = req.body;
+        const { code, guestName, guestId } = req.body;
 
         // 1. Basic Validation
         if (!code || code.length !== 6) {
@@ -157,18 +167,34 @@ exports.joinRoom = async (req, res) => {
             });
         }
 
-        // 4. Check if the student is already in the room
-        // 👇 UPDATED: Using `p.user` to match your schema
-        const alreadyJoined = room.participants.find(
-            (p) => p.user.toString() === req.user._id.toString()
-        );
+        const isRegisteredUser = req.user && req.user._id;
+
+        if (!isRegisteredUser && (!guestName || !guestId)) {
+            return res.status(400).json({ success: false, message: 'Guest name and ID are required.' });
+        }
+
+        const alreadyJoined = room.participants.find(p => {
+            if (isRegisteredUser && p.user) {
+                return p.user.toString() === req.user._id.toString();
+            }
+            if (!isRegisteredUser && p.guestId) {
+                return p.guestId === guestId;
+            }
+            return false;
+        });
 
         if (!alreadyJoined) {
-            // 👇 UPDATED: Pushing exactly what your schema expects
-            room.participants.push({
-                user: req.user._id
-                // joinedAt and hasFinished automatically get their default values (Date.now and false)!
-            });
+            const newParticipant = {};
+
+            if (isRegisteredUser) {
+                newParticipant.user = req.user._id;
+            } else {
+                newParticipant.guestName = guestName;
+                newParticipant.guestId = guestId;
+            }
+
+            room.participants.push(newParticipant);
+            
             await room.save();
         }
 
@@ -188,6 +214,52 @@ exports.joinRoom = async (req, res) => {
 };
 
 
+exports.leaveRoom = async (req, res) => {
+    try {
+        const room = await Room.findById(req.params.id);
+        
+        if (!room) {
+            return res.status(404).json({ success: false, message: 'Room not found.' });
+        }
+
+        const userId = req.user ? req.user._id.toString() : null;
+        const guestId = req.headers['x-guest-id']; 
+
+        // Filter the participants array to remove the specific user/guest
+        const originalLength = room.participants.length;
+        
+        room.participants = room.participants.filter(p => {
+            if (userId && p.user) {
+                return p.user.toString() !== userId;
+            }
+            if (guestId && p.guestId) {
+                return p.guestId !== guestId;
+            }
+            return true;
+        });
+
+        // Only save if someone was actually removed
+        if (room.participants.length < originalLength) {
+            await room.save();
+            
+            const io = req.app.get('io');
+            if (io) {
+                io.to(req.params.id).emit('student_left');
+            }
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Successfully left the room.'
+        });
+
+    } catch (error) {
+        console.error('Leave room error:', error);
+        res.status(500).json({ success: false, message: 'Server Error processing leave request.' });
+    }
+};
+
+
 exports.getTutorRooms = async (req, res) => {
     try {
         const rooms = await Room.find({ tutor_id: req.user._id })
@@ -202,5 +274,39 @@ exports.getTutorRooms = async (req, res) => {
     } catch (error) {
         console.error('Fetch tutor rooms error:', error);
         res.status(500).json({ success: false, message: 'Server Error fetching rooms.' });
+    }
+};
+
+
+exports.getJoinedRooms = async (req, res) => {
+    try {
+        const userId = req.user ? req.user._id : null;
+        const guestId = req.headers['x-guest-id'];
+
+        if (!userId && !guestId) {
+            return res.status(200).json({ success: true, data: [] });
+        }
+
+        // 2. Build the Mongoose search query
+        let query = {};
+        if (userId) {
+            query = { 'participants.user': userId };
+        } else {
+            query = { 'participants.guestId': guestId };
+        }
+
+        // 3. Fetch the rooms and populate the Test details for the frontend cards
+        const rooms = await Room.find(query)
+            .populate('test', 'title') // Grab the test title so the UI looks nice
+            .sort({ createdAt: -1 });  // Sort by newest first
+
+        res.status(200).json({
+            success: true,
+            data: rooms
+        });
+
+    } catch (error) {
+        console.error('Get joined rooms error:', error);
+        res.status(500).json({ success: false, message: 'Server Error fetching joined rooms.' });
     }
 };
