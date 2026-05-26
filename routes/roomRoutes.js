@@ -34,4 +34,16 @@ router.get(
 
 router.delete('/:id', protect, authorize('tutor', 'admin'), roomController.deleteRoom);
 
+router.post(
+    '/:id/start', 
+    protect,
+    roomController.startAssessment
+);
+
+router.post('/:roomId/submit', roomController.submitAssessment);
+
+router.get('/:roomId/leaderboard', protect, roomController.getRoomLeaderboard);
+
+router.post('/:roomId/end', roomController.endRoom);
+
 module.exports = router;

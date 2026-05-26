@@ -17,4 +17,7 @@ router.use('/reading-sets', readingSetRoutes);
 const testRoutes = require('./testRoutes');
 router.use('/tests', testRoutes);
 
+const attemptRoutes = require('./attemptRoutes');
+router.use('/attempts', attemptRoutes);
+
 module.exports = router;

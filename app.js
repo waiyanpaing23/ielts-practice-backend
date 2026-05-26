@@ -10,6 +10,8 @@ const app = express();
 
 const server = http.createServer(app);
 
+const roomProgressCache = {};
+
 const io = new Server(server, {
   cors: {
     origin: ["http://localhost:3000", "http://localhost:5173"],
@@ -41,12 +43,41 @@ io.on('connection', (socket) => {
   console.log(`🔌 New client connected: ${socket.id}`);
 
   // Listen for a frontend client asking to join a specific room's channel
-  socket.on('join_room', (roomId) => {
+  socket.on('join-room', (roomId) => {
       socket.join(roomId);
       console.log(`User ${socket.id} joined room: ${roomId}`);
       
       // Tell everyone else in this room that a new student arrived
-      socket.to(roomId).emit('student_joined'); 
+      socket.to(roomId).emit('student-joined'); 
+  });
+
+  socket.on('tutor-start-assessment', (roomId) => {
+    console.log(`Tutor started assessment for room: ${roomId}`);
+    socket.to(roomId).emit('assessment-started');
+  });
+
+  socket.on('student-progress-update', (data) => {
+    // data contains: { roomId, studentId, answeredCount, currentPart }
+    
+    const payload = {
+      ...data,
+      lastActiveAt: Date.now() 
+    };
+
+    if (!roomProgressCache[data.roomId]) {
+      roomProgressCache[data.roomId] = {};
+    }
+
+    roomProgressCache[data.roomId][data.studentId] = payload;
+
+    socket.to(data.roomId).emit('progress-updated', payload);
+  });
+
+  // store and sync progress on tutor monitoring view as progress is lost when tutor refreshes the page
+  socket.on('request-progress-sync', (roomId) => {
+    if (roomProgressCache[roomId]) {
+      socket.emit('progress-sync-data', roomProgressCache[roomId]);
+    }
   });
 
   socket.on('disconnect', () => {

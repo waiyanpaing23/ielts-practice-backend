@@ -16,6 +16,10 @@ router.get(
     testController.getAllTests
 );
 
-router.get('/:id', protect, authorize('admin', 'tutor'), testController.getTestById);
+router.get('/mini-practice', testController.getMiniPractice);
+
+router.get('/recommend-adaptive', testController.getAdaptiveFullTest);
+
+router.get('/:id', testController.getTestById);
 
 module.exports = router;
