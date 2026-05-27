@@ -543,7 +543,6 @@ exports.getRoomLeaderboard = async (req, res) => {
   try {
     const { roomId } = req.params;
 
-    // Fetch the room and populate user data if they are registered accounts
     const room = await Room.findById(roomId)
         .populate('participants.user', 'fullName')
         .populate('test', 'title');
@@ -552,7 +551,6 @@ exports.getRoomLeaderboard = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Room not found' });
     }
 
-    // Fetch all test attempts submitted for this specific room
     const rawAttempts = await TestAttempt.find({ room_id: roomId });
 
     // Remove duplicate attempts logic
@@ -588,7 +586,8 @@ exports.getRoomLeaderboard = async (req, res) => {
       return {
         attemptId: attempt._id,
         name: participantName || 'Guest Learner',
-        score: attempt.bandScore,
+        score: attempt.score,
+        bandScore: attempt.bandScore,
         correctAnswers: attempt.rawScore
       };
     });

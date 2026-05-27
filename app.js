@@ -51,9 +51,22 @@ io.on('connection', (socket) => {
       socket.to(roomId).emit('student-joined'); 
   });
 
-  socket.on('tutor-start-assessment', (roomId) => {
-    console.log(`Tutor started assessment for room: ${roomId}`);
-    socket.to(roomId).emit('assessment-started');
+  socket.on('tutor-start-assessment', (data) => {
+    const { roomId, durationInMinutes } = data;
+    console.log(`Tutor started assessment for room: ${roomId} with duration: ${durationInMinutes} mins`);
+
+    const serverNow = Date.now();
+    const endTime = serverNow + (durationInMinutes * 60 * 1000);
+
+    if (!roomProgressCache[roomId]) {
+      roomProgressCache[roomId] = {};
+    }
+    roomProgressCache[roomId].examEndTime = endTime;
+
+    io.in(roomId).emit('assessment-started', {
+      endTime: endTime,
+      serverNow: serverNow
+    });
   });
 
   socket.on('student-progress-update', (data) => {
