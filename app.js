@@ -12,9 +12,14 @@ const server = http.createServer(app);
 
 const roomProgressCache = {};
 
+const allowedOrigins = ["http://localhost:3000", "http://localhost:5173"];
+if (process.env.CLIENT_URL) {
+  allowedOrigins.push(process.env.CLIENT_URL);
+}
+
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:3000", "http://localhost:5173"],
+    origin: allowedOrigins,
     methods: ["GET", "POST", "PUT", "DELETE"]
   }
 });
