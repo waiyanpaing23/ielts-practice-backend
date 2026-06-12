@@ -19,7 +19,7 @@ if (process.env.CLIENT_URL) {
 
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
+    origin: ["http://localhost:3000", "http://localhost:5173"],
     methods: ["GET", "POST", "PUT", "DELETE"]
   }
 });
@@ -72,6 +72,11 @@ io.on('connection', (socket) => {
       endTime: endTime,
       serverNow: serverNow
     });
+  });
+
+  socket.on("kick-student", ({ roomId, studentId }) => {
+    // 1. Broadcast to the ENTIRE room, and pass the MongoDB studentId as the payload data
+    io.to(roomId).emit("you_have_been_kicked", studentId);
   });
 
   socket.on('student-progress-update', (data) => {

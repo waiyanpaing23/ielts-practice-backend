@@ -46,4 +46,6 @@ router.get('/:roomId/leaderboard', protect, roomController.getRoomLeaderboard);
 
 router.post('/:roomId/end', roomController.endRoom);
 
+router.post('/:roomId/kick', roomController.kickStudent);
+
 module.exports = router;

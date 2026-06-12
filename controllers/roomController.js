@@ -305,6 +305,59 @@ exports.leaveRoom = async (req, res) => {
 };
 
 
+exports.kickStudent = async (req, res) => {
+    try {
+        const { roomId } = req.params;
+        const { studentId } = req.body;
+
+        if (!studentId) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Student ID is required to remove a user.' 
+            });
+        }
+
+        const room = await Room.findById(roomId);
+
+        if (!room) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Assessment room not found.' 
+            });
+        }
+
+        // Remove the student from the participants array
+        const initialParticipantCount = room.participants.length;
+        
+        room.participants = room.participants.filter(
+            (participant) => participant._id.toString() !== studentId.toString()
+        );
+
+        // Check if a student was actually removed
+        if (room.participants.length === initialParticipantCount) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Student not found in this room.' 
+            });
+        }
+
+        await room.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Student successfully removed from the room.',
+        });
+
+    } catch (error) {
+        console.error('Kick student error:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Server Error processing kick request.' 
+        });
+    }
+};
+
+
 exports.getTutorRooms = async (req, res) => {
     try {
         const rooms = await Room.find({ tutor_id: req.user._id })
